@@ -2,6 +2,8 @@
   CSCI 420 Computer Graphics
   Assignment 1: Height Fields
   C++ starter code
+  Student: YUZHOU GE
+  ID: 7057669325
 */
 
 #include <stdlib.h>
@@ -9,7 +11,11 @@
 #include <OpenGL/glu.h>
 #include <GLUT/glut.h>
 #include <pic.h>
-bool stopIdle = false;
+#include <ctime>
+#include <iostream>
+#include <stdio.h>
+#include <fstream>
+bool stopIdle = true; //boolean controller for idle function
 int g_iMenuId;
 
 int g_vMousePos[2] = {0, 0};
@@ -28,20 +34,20 @@ float g_vLandRotate[3] = {0.0, 0.0, 0.0};
 float g_vLandTranslate[3] = {0.0, -8, -200};
 float g_vLandScale[3] = {1.0, 1.0, 1.0};
 
-//float cameraDistance = 50.0;
-//float cameraRotation[2] = {0.0, 0.0};
-
-
 /* see <your pic directory>/pic.h for type Pic */
 Pic * g_pHeightData;
 
-//float cameraPos[3] = {0.0f, 0.0f,  300.0f}; // eye
-//float cameraFocus[3] = {0.0f, 0.0f, -1.0f}; // focus
-//float cameraUp[3] = {0.0f, 1.0f,  0.0f}; // up vector
-
+//these are the data for idle function
 GLfloat delta = 2.0;
-GLint axis = 1;
+GLint axis = 2;
 
+
+//boolean for control screen shots
+bool isScreenShot = false;
+int numScreenShots = 0;
+
+//time variables
+clock_t current_time;
 /* Write a screenshot to the specified filename */
 void saveScreenshot (char *filename)
 {
@@ -73,72 +79,70 @@ void myinit()
 {
   /* setup gl view here */
   glClearColor(0.0, 0.0, 0.0, 1.0);
+  
+  //enable z-buffer
   glEnable(GL_DEPTH_TEST);
+
+  //enable smooth gradient
   glShadeModel(GL_SMOOTH);
 }
 
 
+//this is the function for drawing points
 void drawPoints() {
+  //retrive the height and width of input image
   int height = g_pHeightData->ny;
   int width = g_pHeightData->nx;
-  // initialize points
-    glBegin(GL_POINTS); 
-    // initialize the point size etc  
-    glPointSize(30.0);//set the point size for each dot drawn
+    
+    //start draw points
+    glBegin(GL_POINTS);
+    
+    //set our point size to 30
+    glPointSize(30);
 
-    // cache a color array
-    float color;
-
-    // loop through each element and draw the correct point
-    for (int x = width - 1; x >= 0; --x) {
-
-      // loop through each y value
-      for (int y = height - 1; y >= 0; --y) {
-
-        // grab the proper color from the heightfield
-        color = 1.0;
-
-        // now that the color has been determined, draw it out
-        glColor3f(color, color, color);
-
-        // grab the vertice and draw it on screen 
-        GLfloat glf[3] = {x, y, PIC_PIXEL(g_pHeightData, y, x, 0)};
-        glVertex3fv(&glf[0]);//draw the proper vertex on screen 
+    //loop through each pixal, draw the corresponding vertex
+    for (int i = 0; i <= width - 1; i++) {
+      for (int j = 0; j <= height - 1; j++) {
+        //set vertex color based on each pixal
+        float color = (float)(i+j)/500.0;
+        glColor3f(0.5, color, 0.66);
+        
+        //draw the vertex
+        glVertex3f(i, j, PIC_PIXEL(g_pHeightData, j, i, 0));
       }
-    } //end of the y for loop
+    }
 
-    glEnd();//end the points drawing
-
+    glEnd();
 }
 
-
+//this is the function for drawing wireframe: LINE-LOOP
 void drawWireframe() {
   int height = g_pHeightData->ny;
   int width = g_pHeightData->nx;
 
-  glColor3f(1,1,1);
+    glColor3f(1,1,1); //set initial color to white
+    int density = 3; //this parameter controlls the density of wireframe
+                     //higher the value, the sparser
 
-  int wireframeDensity = 10;
-  for (int y = height - wireframeDensity -1; y >= wireframeDensity; y = y-wireframeDensity ) {
-      // we want to circle for each element in the next for loop and counter-clockwise add our vertices to the point
-      for (int x = wireframeDensity + 1; x < width - wireframeDensity; x = x + wireframeDensity) {
-
-        // draw out the top loops
+    //loop through each pixel based on density and draw the line-loops;
+    for (int i = density; i <= height - density; i = i + density) {
+      for (int j = density + 1; j < width - density; j = j + density) {
         glBegin(GL_LINE_LOOP);
-
-          glVertex3f(x,y,PIC_PIXEL(g_pHeightData, y, x, 0));
-          glVertex3f(x-wireframeDensity, y, PIC_PIXEL(g_pHeightData, y, x-wireframeDensity, 0));
-          glVertex3f(x-wireframeDensity, y+ wireframeDensity, PIC_PIXEL(g_pHeightData, y+wireframeDensity, x-wireframeDensity, 0));  
-
-        glEnd();
-      }
+          glVertex3f(j, i, PIC_PIXEL(g_pHeightData, i, j, 0));
+          glColor3f(0, 1, 0);
+          glVertex3f(j - density, i, PIC_PIXEL(g_pHeightData, i, j - density, 0));
+          glColor3f(1, 1, 1);
+          glVertex3f(j - density, i - density, PIC_PIXEL(g_pHeightData, i - density, j - density, 0));
+          glColor3f(0,0,1);
+        glEnd();  
+      } 
     }
 }
 
+//helper function used to find the max/min z-value
 unsigned int max_z = -1;
 unsigned int min_z = 999;
 void findMax() {
-  
   int height = g_pHeightData->ny;
   int width = g_pHeightData->nx;
   for (int y = 0; y < height; y++) {
@@ -154,27 +158,30 @@ void findMax() {
   }
 }
 
-
+//helper function used to draw vertices for drawFill()
 void fillhelper(int x, int y) {
+  //get the height value based on pixal provided
   unsigned char heightVal = PIC_PIXEL(g_pHeightData, y, x, 0);
   
+  //get color for each pixal based on pixal
   float delta = max_z + min_z;
   float color = (float)heightVal/delta;
-  glColor3f(color, color, color);
+  glColor3f(color, color, 0.666);
 
+  //draw the vertex
   glVertex3f(x,y,heightVal);
 }
 
 
 void drawFill() {
+  //get the height/width of provided image
   int height = g_pHeightData->ny;
   int width = g_pHeightData->nx;
   
-  float tempColor;
   glPushMatrix();
-
-  for (int y = height - 2; y >= 1; --y) {
+  for (int y = 1; y <= height -2; ++y) {
       for (int x = 1; x < width - 2; ++x) {
+        //first triangle
         glBegin(GL_TRIANGLE_STRIP);
           fillhelper(x-1,y);
           fillhelper(x-1,y+1);
@@ -184,6 +191,7 @@ void drawFill() {
           fillhelper(x+1,y);
         glEnd();
 
+        //second triangle
         glBegin(GL_TRIANGLE_STRIP);
           fillhelper(x-1,y);
           fillhelper(x-1,y-1);
@@ -201,43 +209,62 @@ void drawFill() {
 
 
 void displaySwitch() {
-  glPushMatrix();
+  
+
   glTranslatef(0,0,-100);
   glScalef(0.1,0.1,0.1);
 
-  glRotatef(g_vLandRotate[0], 1.0, 0.0, 0.0);
-  glRotatef(g_vLandRotate[1], 0.0, 1.0, 0.0);
-  glRotatef(g_vLandRotate[2], 0.0, 0.0, 1.0);
-
-  glRotatef(90, -1, 0, 0);
-
+  //perform rotation for each frame
+  glRotatef(g_vLandRotate[0], 1.0, 0.0, 0.0); 
+  glRotatef(g_vLandRotate[1], 0.0, 1.0, 0.0); 
+  glRotatef(g_vLandRotate[2], 0.0, 0.0, 1.0); 
+  
+  //perform translation
   glTranslatef(int(g_pHeightData->nx)*-0.5, 0, int(g_pHeightData->ny) * -0.25);
 
-  glRotatef(30, 1, 0, 0);
-
+  //Display mode is Fill (Solid Triangles)
   if (dm == FILL) {
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL);
     drawFill();
   }
+
+  //Display mode is Line-Loop
   else if (dm == LINE) {
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE);
     drawWireframe();
   }
+
+  //Display mode is points
   else if (dm == POINT) {
     glPolygonMode( GL_FRONT_AND_BACK, GL_POINT);
     drawPoints();
   }
 
-  glPopMatrix();
 }
 
 
+//when we reshape the window, adjust the projection position.
+void myReshape(int w, int h) {
+  glViewport(0, 0, w, h);
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  gluPerspective(12.0f, w / h, 0.01, 1000.0);
+  glMatrixMode(GL_MODELVIEW);
+}
 
 void display()
 {
+  //call screen shots function here
+  clock_t this_time = clock(); //get current time
 
-  glViewport(0,0, 640, 480);
-  
+  //if there is more than 15ms elapsed and we can do the screen shots now
+  if (this_time - current_time >= (double)1/15 * 1000 && numScreenShots <= 299 && isScreenShot == true) {
+    char fname [2048];
+    sprintf(fname, "imageOutput/anim%04d.jpg", numScreenShots);
+    saveScreenshot(fname);
+    numScreenShots += 1;
+  }
+
   glMatrixMode(GL_MODELVIEW);
 
   glLoadIdentity();
@@ -248,18 +275,9 @@ void display()
 
   glScalef(g_vLandScale[0], g_vLandScale[1], g_vLandScale[2]);
 
-
-  displaySwitch();
+  //this links to drawing functions
+  displaySwitch();//call the function which decides with style to draw.
   
-
-  glMatrixMode(GL_PROJECTION);
-  
-  glLoadIdentity();
-
-  // fov angle, aspect ratio = width / height, near z, far z
-  gluPerspective(10.0f, 640.0 / 480.0, 0.01, 1000.0);
-
-  // swap the buffers and bring the second one out from hiding
   glutSwapBuffers();
 
 }
@@ -274,10 +292,16 @@ void menufunc(int value)
   }
 }
 
+//the idle function for auto-rotation
 void doIdle()
 {
   /* do some stuff... */
-  g_vLandRotate[axis] += delta;
+  //roate the objects
+  g_vLandRotate[2] += delta;
+  //g_vLandRotate[1] += delta;
+  //g_vLandRotate[0] += delta;
+
+  //end one period
   if (g_vLandRotate[axis] > 360.0) {
   	g_vLandRotate[axis] -= 360.0;
   }
@@ -286,6 +310,7 @@ void doIdle()
   glutPostRedisplay();
 }
 
+//the idle function for doing nothing
 void doIdleNULL() {
 	glutPostRedisplay();
 }
@@ -375,56 +400,35 @@ void mousebutton(int button, int state, int x, int y)
   g_vMousePos[1] = y;
 }
 
-// void myReshape(int w, int h) {
-//   glViewport(0,0, 640, 480);
-  
-//   glMatrixMode(GL_MODELVIEW);
 
-//   glLoadIdentity();
-  
-//   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-//   glTranslatef(g_vLandTranslate[0], g_vLandTranslate[1], g_vLandTranslate[2]);
-
-//   glScalef(g_vLandScale[0], g_vLandScale[1], g_vLandScale[2]);
-
-
-
-//   glMatrixMode(GL_PROJECTION);
-//     glLoadIdentity();
-
-//     // fov angle, aspect ratio = width / height, near z, far z
-//     gluPerspective(10.0f, 640.0 / 480.0, 0.01, 1000.0);
-
-// }
-
-void keyPress(int key, int x, int y) {
-	//trangile--"T"
+void keyPress(unsigned char key, int x, int y) {
+	//trangile--"T" update display mode to fill
 	if (key == 116 || key == 84) {
 		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL);
 		dm = FILL;
 
 	}
-	//point -- "P"
+	//point -- "P", update display mode to line
 	if (key == 112 || key == 80) {
 		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE);
 		dm = POINT;
 	}
 
-	//wirefram -- "W"
+	//wirefram -- "W" update display mode to point
 	if (key == 119 || key == 87) {
 		glPolygonMode( GL_FRONT_AND_BACK, GL_POINT);
 		dm = LINE;
 	}
 
-	//stop idle function
+	//stop/start doIdle function
 	if (key == ' ') {
 		stopIdle = !stopIdle;
 	}
+
 	if (stopIdle) {
-		glutIdleFunc(doIdleNULL);
+		glutIdleFunc(doIdleNULL); //do nothing
 	} else {
-		glutIdleFunc(doIdle);
+		glutIdleFunc(doIdle); //auto-rotation
 	}
 
 	//switch control state;
@@ -437,10 +441,18 @@ void keyPress(int key, int x, int y) {
 	if (key == 51) { //3
 		g_ControlState = SCALE;
 	}
+
+  //key 'X' or 'x' for take screen shot.s
+  if (key == 120 || key == 88) {
+      isScreenShot = true;
+      current_time = clock();
+      std::cout << current_time << std::endl;
+  }
 }
 
 int main (int argc, char ** argv)
-{
+{ 
+
   if (argc<2)
   {  
     printf ("usage: %s heightfield.jpg\n", argv[0]);
@@ -490,16 +502,16 @@ int main (int argc, char ** argv)
   myinit();
   
   //reshap function, reset the cameras when the window size changed.
-  //glutReshapeFunc(myReshape);
+  glutReshapeFunc(myReshape);
   
   /* tells glut to use a particular display function to redraw */
   glutDisplayFunc(display);
 
   /* replace with any animate code */
-  glutIdleFunc(doIdle);
+  glutIdleFunc(doIdleNULL);
 
   //allow user to press key to switch display mode
-  glutSpecialFunc(keyPress);
+  glutKeyboardFunc(keyPress);
 
   /* callback for mouse drags */
   glutMotionFunc(mousedrag);
@@ -507,8 +519,6 @@ int main (int argc, char ** argv)
   glutPassiveMotionFunc(mouseidle);
   /* callback for mouse button changes */
   glutMouseFunc(mousebutton);
-
-
 
   glutMainLoop();
   return(0);
