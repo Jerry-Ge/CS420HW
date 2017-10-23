@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/yuzhouge/Desktop/CS420HW2/assign2/assign2.cpp
+stdio.h
+-
+stdlib.h
+-
+OpenGL/gl.h
+-
+OpenGL/glu.h
+-
+GLUT/glut.h
+-
+pic.h
+/Users/yuzhouge/Desktop/CS420HW2/assign2/pic.h
+

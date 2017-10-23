@@ -1,0 +1,3 @@
+/Users/yuzhouge/Desktop/CS420HW2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/yuzhouge/Desktop/CS420HW2/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/yuzhouge/Desktop/CS420HW2/cmake-build-debug/CMakeFiles/CS420HW2.dir
