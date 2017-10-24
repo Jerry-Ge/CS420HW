@@ -1,6 +1,7 @@
 /*
-  CSCI 480
-  Assignment 2
+  CSCI 420 Assignment 2
+  Name: Yuzhou Ge
+  ID: 7057669325
  */
 
 #include <iostream>
@@ -33,16 +34,16 @@ int numOfSplinePoints;
 
 /*data for texture mapping*/
 GLuint textures[] = {0, 1, 2, 3, 4, 5, 6};//up, down, front, back, right, left, 
-const int SKY_UP = 0, SKY_DOWN = 1, SKY_FRONT = 2, SKY_BACK = 3, SKY_RIGHT = 4, SKY_LEFT = 5, WOOD = 6;
+const int UP = 0, DOWN = 1, FRONT = 2, BACK = 3, RIGHT = 4, LEFT = 5, WOOD = 6;
 
-char* T_UP = "images/sky/sky.jpg";
-char* T_DOWN = "images/sky/down.jpg";
-char* T_FRONT = "images/sky/sky.jpg";
-char* T_BACK = "images/sky/sky.jpg";
-char* T_RIGHT = "images/sky/sky.jpg";
-char* T_LEFT = "images/sky/sky.jpg";
+char* T_UP = "images/sky.jpg";
+char* T_DOWN = "images/down.jpg";
+char* T_FRONT = "images/sky.jpg";
+char* T_BACK = "images/sky.jpg";
+char* T_RIGHT = "images/sky.jpg";
+char* T_LEFT = "images/sky.jpg";
 char* T_Cross = "images/wood.jpg";
-const float WORLD_SCALE = 256.0;
+const float SCALE_MAPPING = 256.0;
 
 //variables to store display list.
 GLuint groundSkyID;
@@ -55,13 +56,16 @@ double currentU = 0.0;
 double MAX_HEIGHT = 0.0; // this is for calculating gravity speed.
 int ride_counter = 0;
 
-const double SPEED = 3.0;
+/*constant variables for camera movement*/
+const double SPEED = 4.0;
 const double TIMESTEP = SPEED / 1000; 
 const double EYE_UP = 0.2 / 10 * 6;
 
-const double DISTANCE_BETWEEN_Rails = 0.2;
-const double RAIL_WIDTH_HEIGHT = DISTANCE_BETWEEN_Rails / 15;
-const int DISTANCE_BETWEEN_CROSSES = 1000 / 20;
+
+/*constant variables for drawing the double rail and cross section*/
+const double CROSS_RAIL_DISTANCE = 0.0;
+const double RAIL_SIZE = CROSS_RAIL_DISTANCE / 15;
+const int DISTANCE_BETWEEN_CROSSES = 1000 / 10;
 const double CROSS_HEIGHT = 0.2 / 10;
 const double CROSS_WIDTH = 0.2 / 3 * 5;
 const int CROSS_LENGTH = DISTANCE_BETWEEN_CROSSES / 10 * 3;
@@ -82,6 +86,43 @@ point* rightSplinePoints;
 point* tangentOfSpline;
 point* normalOfSpline;
 point* binormalOfSpline;
+
+
+//boolean for control screen shots
+bool isScreenShot = false;
+int numScreenShots = 0;
+
+
+//time variables
+clock_t current_time;
+/* Write a screenshot to the specified filename */
+void saveScreenshot (char *filename)
+{
+  int i, j;
+  Pic *in = NULL;
+
+  if (filename == NULL)
+    return;
+
+  /* Allocate a picture buffer */
+  in = pic_alloc(640, 480, 3, NULL);
+
+  printf("File to save to: %s\n", filename);
+
+  for (i=479; i>=0; i--) {
+    glReadPixels(0, 479-i, 640, 1, GL_RGB, GL_UNSIGNED_BYTE,
+                 &in->pix[i*in->nx*in->bpp]);
+  }
+
+  if (jpeg_write(filename, in))
+    printf("File saved Successfully\n");
+  else
+    printf("Error in Saving\n");
+
+  pic_free(in);
+}
+
+
 
 /* spline struct which contains how many control points, and an array of control points */
 struct spline {
@@ -154,6 +195,7 @@ void splineGenerator(spline* g_Splines) {
   int numControlPoints = g_Splines[0].numControlPoints;
   float uIncrement = 0.001;
 
+  //set up the initial vector for finding normal
   V0.x = 0.0; V0.y = 0.0; V0.z = -1.0;
 
 
@@ -238,6 +280,7 @@ void splineGenerator(spline* g_Splines) {
 }
 
 
+/*function for loading texture image files*/
 void loadTexture(char* filename, GLuint textureID) {
   Pic* myTexture = jpeg_read(filename, NULL);
   if (myTexture == NULL) {
@@ -246,7 +289,6 @@ void loadTexture(char* filename, GLuint textureID) {
   }
 
   glBindTexture(GL_TEXTURE_2D, textureID);
-
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_CLAMP);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_CLAMP);
   gluBuild2DMipmaps(GL_TEXTURE_2D, 4, myTexture->nx, myTexture->ny, GL_RGB, GL_UNSIGNED_BYTE, myTexture->pix);
@@ -256,19 +298,18 @@ void loadTexture(char* filename, GLuint textureID) {
 
 /*for generating textures for sky and ground*/
 void textureGnerator() {
-  glGenTextures(1, &textures[SKY_UP]);
-  loadTexture(T_UP, textures[SKY_UP]);
-  glGenTextures(1, &textures[SKY_DOWN]);
-  loadTexture(T_DOWN, textures[SKY_DOWN]);
-  glGenTextures(1, &textures[SKY_FRONT]);
-  loadTexture(T_FRONT, textures[SKY_FRONT]);
-  glGenTextures(1, &textures[SKY_BACK]);
-  loadTexture(T_BACK, textures[SKY_BACK]);
-  glGenTextures(1, &textures[SKY_RIGHT]);
-  loadTexture(T_RIGHT, textures[SKY_RIGHT]);
-  glGenTextures(1, &textures[SKY_LEFT]);
-  loadTexture(T_LEFT, textures[SKY_LEFT]);
-
+  glGenTextures(1, &textures[UP]);
+  loadTexture(T_UP, textures[UP]);
+  glGenTextures(1, &textures[DOWN]);
+  loadTexture(T_DOWN, textures[DOWN]);
+  glGenTextures(1, &textures[FRONT]);
+  loadTexture(T_FRONT, textures[FRONT]);
+  glGenTextures(1, &textures[BACK]);
+  loadTexture(T_BACK, textures[BACK]);
+  glGenTextures(1, &textures[RIGHT]);
+  loadTexture(T_RIGHT, textures[RIGHT]);
+  glGenTextures(1, &textures[LEFT]);
+  loadTexture(T_LEFT, textures[LEFT]);
   glGenTextures(1, &textures[WOOD]);
   loadTexture(T_Cross, textures[WOOD]);
 }
@@ -281,47 +322,47 @@ void environmentDisplayList() {
   glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT);
   glEnable(GL_COLOR_MATERIAL);
 
-  glBindTexture(GL_TEXTURE_2D,textures[SKY_DOWN]);
+  glBindTexture(GL_TEXTURE_2D,textures[DOWN]);
   glBegin(GL_QUADS);
-  glTexCoord2f(0,0); glVertex3f(-WORLD_SCALE,-WORLD_SCALE,-WORLD_SCALE);
-  glTexCoord2f(1,0); glVertex3f(+WORLD_SCALE,-WORLD_SCALE,-WORLD_SCALE);
-  glTexCoord2f(1,1); glVertex3f(+WORLD_SCALE,+WORLD_SCALE,-WORLD_SCALE);
-  glTexCoord2f(0,1); glVertex3f(-WORLD_SCALE,+WORLD_SCALE,-WORLD_SCALE);
+  glTexCoord2f(0,0); glVertex3f(-SCALE_MAPPING,-SCALE_MAPPING,-SCALE_MAPPING);
+  glTexCoord2f(1,0); glVertex3f(+SCALE_MAPPING,-SCALE_MAPPING,-SCALE_MAPPING);
+  glTexCoord2f(1,1); glVertex3f(+SCALE_MAPPING,+SCALE_MAPPING,-SCALE_MAPPING);
+  glTexCoord2f(0,1); glVertex3f(-SCALE_MAPPING,+SCALE_MAPPING,-SCALE_MAPPING);
   glEnd();
-  glBindTexture(GL_TEXTURE_2D,textures[SKY_UP]);
+  glBindTexture(GL_TEXTURE_2D,textures[UP]);
   glBegin(GL_QUADS);
-  glTexCoord2f(0,0); glVertex3f(-WORLD_SCALE,+WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,0); glVertex3f(+WORLD_SCALE,+WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,1); glVertex3f(+WORLD_SCALE,-WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(0,1); glVertex3f(-WORLD_SCALE,-WORLD_SCALE,+WORLD_SCALE);
+  glTexCoord2f(0,0); glVertex3f(-SCALE_MAPPING,+SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,0); glVertex3f(+SCALE_MAPPING,+SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,1); glVertex3f(+SCALE_MAPPING,-SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(0,1); glVertex3f(-SCALE_MAPPING,-SCALE_MAPPING,+SCALE_MAPPING);
   glEnd();
-  glBindTexture(GL_TEXTURE_2D,textures[SKY_FRONT]);
+  glBindTexture(GL_TEXTURE_2D,textures[FRONT]);
   glBegin(GL_QUADS);
-  glTexCoord2f(0,0); glVertex3f(+WORLD_SCALE,-WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,0); glVertex3f(+WORLD_SCALE,+WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,1); glVertex3f(+WORLD_SCALE,+WORLD_SCALE,-WORLD_SCALE);
-  glTexCoord2f(0,1); glVertex3f(+WORLD_SCALE,-WORLD_SCALE,-WORLD_SCALE);
+  glTexCoord2f(0,0); glVertex3f(+SCALE_MAPPING,-SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,0); glVertex3f(+SCALE_MAPPING,+SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,1); glVertex3f(+SCALE_MAPPING,+SCALE_MAPPING,-SCALE_MAPPING);
+  glTexCoord2f(0,1); glVertex3f(+SCALE_MAPPING,-SCALE_MAPPING,-SCALE_MAPPING);
   glEnd();
-  glBindTexture(GL_TEXTURE_2D,textures[SKY_BACK]);
+  glBindTexture(GL_TEXTURE_2D,textures[BACK]);
   glBegin(GL_QUADS);
-  glTexCoord2f(0,0); glVertex3f(-WORLD_SCALE,+WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,0); glVertex3f(-WORLD_SCALE,-WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,1); glVertex3f(-WORLD_SCALE,-WORLD_SCALE,-WORLD_SCALE);
-  glTexCoord2f(0,1); glVertex3f(-WORLD_SCALE,+WORLD_SCALE,-WORLD_SCALE);
+  glTexCoord2f(0,0); glVertex3f(-SCALE_MAPPING,+SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,0); glVertex3f(-SCALE_MAPPING,-SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,1); glVertex3f(-SCALE_MAPPING,-SCALE_MAPPING,-SCALE_MAPPING);
+  glTexCoord2f(0,1); glVertex3f(-SCALE_MAPPING,+SCALE_MAPPING,-SCALE_MAPPING);
   glEnd();
-  glBindTexture(GL_TEXTURE_2D,textures[SKY_LEFT]);
+  glBindTexture(GL_TEXTURE_2D,textures[LEFT]);
   glBegin(GL_QUADS);
-  glTexCoord2f(0,0); glVertex3f(+WORLD_SCALE,+WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,0); glVertex3f(-WORLD_SCALE,+WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,1); glVertex3f(-WORLD_SCALE,+WORLD_SCALE,-WORLD_SCALE);
-  glTexCoord2f(0,1); glVertex3f(+WORLD_SCALE,+WORLD_SCALE,-WORLD_SCALE);
+  glTexCoord2f(0,0); glVertex3f(+SCALE_MAPPING,+SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,0); glVertex3f(-SCALE_MAPPING,+SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,1); glVertex3f(-SCALE_MAPPING,+SCALE_MAPPING,-SCALE_MAPPING);
+  glTexCoord2f(0,1); glVertex3f(+SCALE_MAPPING,+SCALE_MAPPING,-SCALE_MAPPING);
   glEnd();
-  glBindTexture(GL_TEXTURE_2D,textures[SKY_RIGHT]);
+  glBindTexture(GL_TEXTURE_2D,textures[RIGHT]);
   glBegin(GL_QUADS);
-  glTexCoord2f(1,0); glVertex3f(+WORLD_SCALE,-WORLD_SCALE,+WORLD_SCALE);
-  glTexCoord2f(1,1); glVertex3f(+WORLD_SCALE,-WORLD_SCALE,-WORLD_SCALE);
-  glTexCoord2f(0,1); glVertex3f(-WORLD_SCALE,-WORLD_SCALE,-WORLD_SCALE);
-  glTexCoord2f(0,0); glVertex3f(-WORLD_SCALE,-WORLD_SCALE,+WORLD_SCALE);
+  glTexCoord2f(1,0); glVertex3f(+SCALE_MAPPING,-SCALE_MAPPING,+SCALE_MAPPING);
+  glTexCoord2f(1,1); glVertex3f(+SCALE_MAPPING,-SCALE_MAPPING,-SCALE_MAPPING);
+  glTexCoord2f(0,1); glVertex3f(-SCALE_MAPPING,-SCALE_MAPPING,-SCALE_MAPPING);
+  glTexCoord2f(0,0); glVertex3f(-SCALE_MAPPING,-SCALE_MAPPING,+SCALE_MAPPING);
   glEnd();
 
   glDisable(GL_COLOR_MATERIAL);
@@ -414,16 +455,19 @@ void drawRailSide(point p, point n, point b, point p1, point n1, point b1, doubl
       glVertex3d(p1.x+f*(n1.x+b1.x), p1.y+f*(n1.y+b1.y), p1.z+f*(n1.z+b1.z));
       glVertex3d(p1.x+f*(b1.x-n1.x), p1.y+f*(b1.y-n1.y), p1.z+f*(b1.z-n1.z));
       glVertex3d(p.x+f*(b.x-n.x), p.y+f*(b.y-n.y), p.z+f*(b.z-n.z));
+      
       // down
       glVertex3d(p.x+f*(n.x-b.x), p.y+f*(n.y-b.y), p.z+f*(n.z-b.z));
       glVertex3d(p1.x+f*(n1.x-b1.x), p1.y+f*(n1.y-b1.y), p1.z+f*(n1.z-b1.z));
       glVertex3d(p1.x+f*(-b1.x-n1.x), p1.y+f*(-b1.y-n1.y), p1.z+f*(-b1.z-n1.z));
       glVertex3d(p.x+f*(-b.x-n.x), p.y+f*(-b.y-n.y), p.z+f*(-b.z-n.z));
+      
       // left
       glVertex3d(p.x+f*(-n.x+b.x), p.y+f*(-n.y+b.y), p.z+f*(-n.z+b.z));
       glVertex3d(p1.x+f*(-n1.x+b1.x), p1.y+f*(-n1.y+b1.y), p1.z+f*(-n1.z+b1.z));
       glVertex3d(p1.x+f*(-b1.x-n1.x), p1.y+f*(-b1.y-n1.y), p1.z+f*(-b1.z-n1.z));
       glVertex3d(p.x+f*(-b.x-n.x), p.y+f*(-b.y-n.y), p.z+f*(-b.z-n.z));
+      
       // right
       glVertex3d(p.x+f*(n.x+b.x), p.y+f*(n.y+b.y), p.z+f*(n.z+b.z));
       glVertex3d(p1.x+f*(n1.x+b1.x), p1.y+f*(n1.y+b1.y), p1.z+f*(n1.z+b1.z));
@@ -438,6 +482,7 @@ void railDisplayList() {
   glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT);
   glEnable(GL_COLOR_MATERIAL);
 
+  //draw rail lines
   glLineWidth(1.0);
   glColor3f(0, 0, 0);
   drawRailLine(leftSplinePoints);
@@ -447,7 +492,7 @@ void railDisplayList() {
   glBegin(GL_QUADS);
   for (int i = 0; i < g_iNumOfSplines; i++) {
     for (int j = 0; j < numOfSplinePoints; j++) {
-      double f = 0.2/15; //the dimension of rail box. 
+      double f = 0.008; //the dimension of rail box. 
      
       //left rail
       point p = leftSplinePoints[j];
@@ -472,7 +517,68 @@ void railDisplayList() {
 }
 
 
+void drawCross(point p, point n, point b, point np, double h, double w) {
+  glBegin(GL_QUADS);//draw all 6 faces.
+        //front
+        glTexCoord2f(0.0, 0.0); 
+        glVertex3d(p.x-w/2.0*n.x, p.y-w/2.0*n.y, p.z-w/2.0*n.z);
+        glTexCoord2f(0.0, 1.0); 
+        glVertex3d(p.x-w/2.0*n.x-h*b.x, p.y-w/2.0*n.y-h*b.y, p.z-w/2.0*n.z-h*b.z);
+        glTexCoord2f(1.0, 1.0); 
+        glVertex3d(p.x+w/2.0*n.x-h*b.x, p.y+w/2.0*n.y-h*b.y, p.z+w/2.0*n.z-h*b.z);
+        glTexCoord2f(1.0, 0.0); 
+        glVertex3d(p.x+w/2.0*n.x, p.y+w/2.0*n.y, p.z+w/2.0*n.z);
+        //back
+        glTexCoord2f(0.0, 0.0); 
+        glVertex3d(np.x-w/2.0*n.x, np.y-w/2.0*n.y, np.z-w/2.0*n.z);
+        glTexCoord2f(0.0, 1.0); 
+        glVertex3d(np.x-w/2.0*n.x-h*b.x, np.y-w/2.0*n.y-h*b.y, np.z-w/2.0*n.z-h*b.z);
+        glTexCoord2f(1.0, 1.0); 
+        glVertex3d(np.x+w/2.0*n.x-h*b.x, np.y+w/2.0*n.y-h*b.y, np.z+w/2.0*n.z-h*b.z);
+        glTexCoord2f(1.0, 0.0); 
+        glVertex3d(np.x+w/2.0*n.x, np.y+w/2.0*n.y, np.z+w/2.0*n.z);
+        //bottom
+        glTexCoord2f(0.0, 0.0); 
+        glVertex3d(p.x-w/2.0*n.x-h*b.x, p.y-w/2.0*n.y-h*b.y, p.z-w/2.0*n.z-h*b.z);
+        glTexCoord2f(0.0, 1.0); 
+        glVertex3d(np.x-w/2.0*n.x-h*b.x, np.y-w/2.0*n.y-h*b.y, np.z-w/2.0*n.z-h*b.z);
+        glTexCoord2f(1.0, 1.0); 
+        glVertex3d(np.x+w/2.0*n.x-h*b.x, np.y+w/2.0*n.y-h*b.y, np.z+w/2.0*n.z-h*b.z);
+        glTexCoord2f(1.0, 0.0); 
+        glVertex3d(p.x+w/2.0*n.x-h*b.x, p.y+w/2.0*n.y-h*b.y, p.z+w/2.0*n.z-h*b.z);
+        //up
+        glTexCoord2f(0.0, 0.0); 
+        glVertex3d(p.x-w/2.0*n.x, p.y-w/2.0*n.y, p.z-w/2.0*n.z);
+        glTexCoord2f(0.0, 1.0); 
+        glVertex3d(np.x-w/2.0*n.x, np.y-w/2.0*n.y, np.z-w/2.0*n.z);
+        glTexCoord2f(1.0, 1.0); 
+        glVertex3d(np.x+w/2.0*n.x, np.y+w/2.0*n.y, np.z+w/2.0*n.z);
+        glTexCoord2f(1.0, 0.0); 
+        glVertex3d(p.x+w/2.0*n.x, p.y+w/2.0*n.y, p.z+w/2.0*n.z);
+        //right
+        glTexCoord2f(0.0, 0.0); 
+        glVertex3d(p.x+w/2.0*n.x, p.y+w/2.0*n.y, p.z+w/2.0*n.z);
+        glTexCoord2f(0.0, 1.0); 
+        glVertex3d(np.x+w/2.0*n.x, np.y+w/2.0*n.y, np.z+w/2.0*n.z);
+        glTexCoord2f(1.0, 1.0); 
+        glVertex3d(np.x+w/2.0*n.x-h*b.x, np.y+w/2.0*n.y-h*b.y, np.z+w/2.0*n.z-h*b.z);
+        glTexCoord2f(1.0, 0.0); 
+        glVertex3d(p.x+w/2.0*n.x-h*b.x, p.y+w/2.0*n.y-h*b.y, p.z+w/2.0*n.z-h*b.z);
+        //left
+        glTexCoord2f(0.0, 0.0); 
+        glVertex3d(p.x-w/2.0*n.x, p.y-w/2.0*n.y, p.z-w/2.0*n.z);
+        glTexCoord2f(0.0, 1.0); 
+        glVertex3d(np.x-w/2.0*n.x, np.y-w/2.0*n.y, np.z-w/2.0*n.z);
+        glTexCoord2f(1.0, 1.0); 
+        glVertex3d(np.x-w/2.0*n.x-h*b.x, np.y-w/2.0*n.y-h*b.y, np.z-w/2.0*n.z-h*b.z);
+        glTexCoord2f(1.0, 0.0); 
+        glVertex3d(p.x-w/2.0*n.x-h*b.x, p.y-w/2.0*n.y-h*b.y, p.z-w/2.0*n.z-h*b.z);
+        glEnd();
+
+}
+
 void crossDisplayList() {
+  //create the displaylist
   crossID = glGenLists(1);
   glNewList(crossID, GL_COMPILE);
   glEnable(GL_TEXTURE_2D);
@@ -483,6 +589,7 @@ void crossDisplayList() {
     for (int j = 0; j < numOfSplinePoints - CROSS_LENGTH; j++) {
       if (counter == DISTANCE_BETWEEN_CROSSES) {
         counter = 0;
+        //get all the vector points we need
         point p = splinePoints[j];
         point n = normalOfSpline[j];
         point b = binormalOfSpline[j];
@@ -491,74 +598,19 @@ void crossDisplayList() {
         double h = CROSS_HEIGHT;
         double w = CROSS_WIDTH;
 
-        //move p to the bottom of the trail
-        p.x = p.x - (RAIL_WIDTH_HEIGHT) * b.x;
-        p.y = p.y - (RAIL_WIDTH_HEIGHT) * b.y;
-        p.z = p.z - (RAIL_WIDTH_HEIGHT) * b.z;
-        np.x = np.x - (RAIL_WIDTH_HEIGHT) * b.x;
-        np.y = np.y - (RAIL_WIDTH_HEIGHT) * b.y;
-        np.z = np.z - (RAIL_WIDTH_HEIGHT) * b.z;
+        p.x = p.x - (RAIL_SIZE) * b.x;
+        p.y = p.y - (RAIL_SIZE) * b.y;
+        p.z = p.z - (RAIL_SIZE) * b.z;
+        np.x = np.x - (RAIL_SIZE) * b.x;
+        np.y = np.y - (RAIL_SIZE) * b.y;
+        np.z = np.z - (RAIL_SIZE) * b.z;
 
         glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT);
         glEnable(GL_COLOR_MATERIAL);
 
-        glBindTexture(GL_TEXTURE_2D, textures[WOOD]); // 2 - Wood
-        glBegin(GL_QUADS);
-        // front
-        glTexCoord2f(0.0, 0.0); 
-        glVertex3d(p.x-w/2.0*n.x, p.y-w/2.0*n.y, p.z-w/2.0*n.z);
-        glTexCoord2f(0.0, 1.0); 
-        glVertex3d(p.x-w/2.0*n.x-h*b.x, p.y-w/2.0*n.y-h*b.y, p.z-w/2.0*n.z-h*b.z);
-        glTexCoord2f(1.0, 1.0); 
-        glVertex3d(p.x+w/2.0*n.x-h*b.x, p.y+w/2.0*n.y-h*b.y, p.z+w/2.0*n.z-h*b.z);
-        glTexCoord2f(1.0, 0.0); 
-        glVertex3d(p.x+w/2.0*n.x, p.y+w/2.0*n.y, p.z+w/2.0*n.z);
-        // back
-        glTexCoord2f(0.0, 0.0); 
-        glVertex3d(np.x-w/2.0*n.x, np.y-w/2.0*n.y, np.z-w/2.0*n.z);
-        glTexCoord2f(0.0, 1.0); 
-        glVertex3d(np.x-w/2.0*n.x-h*b.x, np.y-w/2.0*n.y-h*b.y, np.z-w/2.0*n.z-h*b.z);
-        glTexCoord2f(1.0, 1.0); 
-        glVertex3d(np.x+w/2.0*n.x-h*b.x, np.y+w/2.0*n.y-h*b.y, np.z+w/2.0*n.z-h*b.z);
-        glTexCoord2f(1.0, 0.0); 
-        glVertex3d(np.x+w/2.0*n.x, np.y+w/2.0*n.y, np.z+w/2.0*n.z);
-        // bottom
-        glTexCoord2f(0.0, 0.0); 
-        glVertex3d(p.x-w/2.0*n.x-h*b.x, p.y-w/2.0*n.y-h*b.y, p.z-w/2.0*n.z-h*b.z);
-        glTexCoord2f(0.0, 1.0); 
-        glVertex3d(np.x-w/2.0*n.x-h*b.x, np.y-w/2.0*n.y-h*b.y, np.z-w/2.0*n.z-h*b.z);
-        glTexCoord2f(1.0, 1.0); 
-        glVertex3d(np.x+w/2.0*n.x-h*b.x, np.y+w/2.0*n.y-h*b.y, np.z+w/2.0*n.z-h*b.z);
-        glTexCoord2f(1.0, 0.0); 
-        glVertex3d(p.x+w/2.0*n.x-h*b.x, p.y+w/2.0*n.y-h*b.y, p.z+w/2.0*n.z-h*b.z);
-        // up
-        glTexCoord2f(0.0, 0.0); 
-        glVertex3d(p.x-w/2.0*n.x, p.y-w/2.0*n.y, p.z-w/2.0*n.z);
-        glTexCoord2f(0.0, 1.0); 
-        glVertex3d(np.x-w/2.0*n.x, np.y-w/2.0*n.y, np.z-w/2.0*n.z);
-        glTexCoord2f(1.0, 1.0); 
-        glVertex3d(np.x+w/2.0*n.x, np.y+w/2.0*n.y, np.z+w/2.0*n.z);
-        glTexCoord2f(1.0, 0.0); 
-        glVertex3d(p.x+w/2.0*n.x, p.y+w/2.0*n.y, p.z+w/2.0*n.z);
-        // right
-        glTexCoord2f(0.0, 0.0); 
-        glVertex3d(p.x+w/2.0*n.x, p.y+w/2.0*n.y, p.z+w/2.0*n.z);
-        glTexCoord2f(0.0, 1.0); 
-        glVertex3d(np.x+w/2.0*n.x, np.y+w/2.0*n.y, np.z+w/2.0*n.z);
-        glTexCoord2f(1.0, 1.0); 
-        glVertex3d(np.x+w/2.0*n.x-h*b.x, np.y+w/2.0*n.y-h*b.y, np.z+w/2.0*n.z-h*b.z);
-        glTexCoord2f(1.0, 0.0); 
-        glVertex3d(p.x+w/2.0*n.x-h*b.x, p.y+w/2.0*n.y-h*b.y, p.z+w/2.0*n.z-h*b.z);
-        // left
-        glTexCoord2f(0.0, 0.0); 
-        glVertex3d(p.x-w/2.0*n.x, p.y-w/2.0*n.y, p.z-w/2.0*n.z);
-        glTexCoord2f(0.0, 1.0); 
-        glVertex3d(np.x-w/2.0*n.x, np.y-w/2.0*n.y, np.z-w/2.0*n.z);
-        glTexCoord2f(1.0, 1.0); 
-        glVertex3d(np.x-w/2.0*n.x-h*b.x, np.y-w/2.0*n.y-h*b.y, np.z-w/2.0*n.z-h*b.z);
-        glTexCoord2f(1.0, 0.0); 
-        glVertex3d(p.x-w/2.0*n.x-h*b.x, p.y-w/2.0*n.y-h*b.y, p.z-w/2.0*n.z-h*b.z);
-        glEnd();
+        glBindTexture(GL_TEXTURE_2D, textures[WOOD]); // map the wood texture to cross section
+        
+        drawCross(p, n, b, np, h, w); //call the drawing fucntion
 
         glDisable(GL_COLOR_MATERIAL);
       }
@@ -634,7 +686,12 @@ void menufunc(int value)
 
 /* callback function for keyboard manipulation*/
 void keyPress(unsigned char key, int x, int y) {
-  
+  //key 'X' or 'x' for take screen shot.s
+  if (key == 120 || key == 88) {
+      isScreenShot = true;
+      current_time = clock();
+      std::cout << current_time << std::endl;
+  }
 }
 
 /*calculate the speed by gravity constant g
@@ -697,6 +754,17 @@ void setUpCamera() {
 
 
 void display() {
+  //call screen shots function here
+  clock_t this_time = clock(); //get current time
+
+  //if there is more than 15ms elapsed and we can do the screen shots now
+  if (this_time - current_time >= (double)1/15 * 1000 && numScreenShots <= 999 && isScreenShot == true) {
+    char fname [2048];
+    sprintf(fname, "imageOutput/anim%04d.jpg", numScreenShots);
+    saveScreenshot(fname);
+    numScreenShots += 1;
+  }
+
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   
   glPushMatrix();
