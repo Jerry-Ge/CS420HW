@@ -34,7 +34,7 @@ char *filename=0;
 int mode=MODE_DISPLAY;
 
 //supersampling
-#define SUPER_SAMPLING 1
+#define SUPER_SAMPLING 3
 
 //you may want to make these smaller for debugging purposes
 #define WIDTH 640
@@ -117,6 +117,36 @@ const double PI = 3.14159265;
 
 const double F = 255.0; //For conveniency, define max color number
 
+
+void outPut() {
+  //output the image.
+  int col = 0;
+  for (int k = 0; k < WIDTH * SUPER_SAMPLING; k += SUPER_SAMPLING) {
+  	glPointSize(2);
+  	glBegin(GL_POINTS);
+  	int row = 0;
+  	for (int t = 0; t < HEIGHT * SUPER_SAMPLING; t += SUPER_SAMPLING) {
+  		double r = 0.0, g = 0.0, b = 0.0;
+  		for (int i = 0; i < SUPER_SAMPLING; i++) {
+  			for (int j = 0; j < SUPER_SAMPLING; j++) {
+  				r += image_plane[t+j][k+i].x;
+  				g += image_plane[t+j][k+i].y;
+  				b += image_plane[t+j][k+i].z;
+  			}
+  		}
+  		r /= pow(SUPER_SAMPLING, 2);
+  		g /= pow(SUPER_SAMPLING, 2);
+  		b /= pow(SUPER_SAMPLING, 2);
+  		plot_pixel(col,row,r,g,b);
+  		row++;
+  	}
+  	glEnd();
+  	glFlush();
+  	col++;
+  }
+}
+
+
 //MODIFY THIS FUNCTION
 void draw_scene()
 {
@@ -147,31 +177,8 @@ void draw_scene()
   		y += image_h / (HEIGHT * SUPER_SAMPLING);
   }
 
-  //output the image.
-  int col = 0;
-  for (int k = 0; k < WIDTH * SUPER_SAMPLING; k += SUPER_SAMPLING) {
-  	glPointSize(2);
-  	glBegin(GL_POINTS);
-  	int row = 0;
-  	for (int t = 0; t < HEIGHT * SUPER_SAMPLING; t += SUPER_SAMPLING) {
-  		double r = 0.0, g = 0.0, b = 0.0;
-  		for (int i = 0; i < SUPER_SAMPLING; i++) {
-  			for (int j = 0; j < SUPER_SAMPLING; j++) {
-  				r += image_plane[t+j][k+i].x;
-  				g += image_plane[t+j][k+i].y;
-  				b += image_plane[t+j][k+i].z;
-  			}
-  		}
-  		r /= pow(SUPER_SAMPLING, 2);
-  		g /= pow(SUPER_SAMPLING, 2);
-  		b /= pow(SUPER_SAMPLING, 2);
-  		plot_pixel(col,row,r,g,b);
-  		row++;
-  	}
-  	glEnd();
-  	glFlush();
-  	col++;
-  }
+  //output the image in OPENGL
+  outPut();
 
   if(mode == MODE_JPEG) {
   	save_jpg();

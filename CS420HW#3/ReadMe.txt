@@ -1,7 +1,7 @@
 Assignment #3: Ray tracing
 Use 1 late day
 
-!!!!Operating System: Max OS X !!!!
+!!!Operating System: Max OS X !!!!!
 
 FULL NAME: Yuzhou Ge
 ID: 7057669325
